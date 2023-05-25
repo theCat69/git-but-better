@@ -1,8 +1,15 @@
+use lazy_static::lazy_static;
 use std::{
     env::{self, Args},
+    ffi::OsStr,
     iter::Skip,
     process::{Command, Stdio},
 };
+
+lazy_static! {
+    static ref BRANCH_NAME: String = get_current_git_branch();
+    static ref REMOTE_NAME: String = get_git_remote();
+}
 
 fn main() {
     let mut cmd_iter = env::args().skip(1);
@@ -10,10 +17,9 @@ fn main() {
     let git_main_param = cmd_iter.next().expect("No git main command");
     let args: Vec<String>;
 
-    if git_main_param == "push" {
-        args = handle_push(cmd_iter);
-    } else {
-        args = cmd_iter.collect();
+    match git_main_param.as_str() {
+        "push" => args = handle_push(cmd_iter),
+        _ => args = cmd_iter.collect(),
     }
 
     let mut git_cmd = Command::new("git");
@@ -30,29 +36,38 @@ fn main() {
 fn handle_push(cmd_iter: Skip<Args>) -> Vec<String> {
     let mut args = vec![];
     for ele in cmd_iter {
-        if ele == "-u" {
-            args.push("-u".to_string());
-            args.push("origin".to_string());
-            args.push(get_current_git_branch());
-        } else {
-            args.push(ele);
+        match ele.as_str() {
+            "-u" => {
+                args.push("-u".to_string());
+                args.push(REMOTE_NAME.to_string());
+                args.push(BRANCH_NAME.to_string());
+            }
+            "-d" => {
+                args.push("-d".to_string());
+                args.push(REMOTE_NAME.to_string());
+                args.push(BRANCH_NAME.to_string());
+            }
+            _ => args.push(ele),
         }
     }
 
     return args;
 }
 
+fn get_git_remote() -> String {
+    return run_git_command(vec!["remote"], "should get remote name");
+}
+
 fn get_current_git_branch() -> String {
-    return String::from_utf8(
-        Command::new("git")
-            .arg("branch")
-            .arg("--show-current")
-            .arg("2>nul")
-            .output()
-            .expect("Cannot get current branch")
-            .stdout,
-    )
-    .expect("stdout from command should be utf8 stream of bytes")
-    .trim()
-    .to_string();
+    return run_git_command(
+        vec!["branch", "--show-current", "2>nul"],
+        "Cannot get current branch",
+    );
+}
+
+fn run_git_command<T: AsRef<OsStr>>(args: Vec<T>, msg: &str) -> String {
+    return String::from_utf8(Command::new("git").args(args).output().expect(msg).stdout)
+        .expect("stdout from command should be utf8 stream of bytes")
+        .trim()
+        .to_string();
 }
