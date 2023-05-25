@@ -11,10 +11,30 @@ lazy_static! {
     static ref REMOTE_NAME: String = get_git_remote();
 }
 
+fn run_git_command<T: AsRef<OsStr>>(args: Vec<T>, msg: &str) -> String {
+    return String::from_utf8(Command::new("git").args(args).output().expect(msg).stdout)
+        .expect("stdout from command should be utf8 stream of bytes")
+        .trim()
+        .to_string();
+}
+
+fn get_git_remote() -> String {
+    return run_git_command(vec!["remote"], "should get remote name");
+}
+
+fn get_current_git_branch() -> String {
+    return run_git_command(
+        vec!["branch", "--show-current", "2>nul"],
+        "Should return current branch name",
+    );
+}
+
 fn main() {
     let mut cmd_iter = env::args().skip(1);
 
-    let git_main_param = cmd_iter.next().expect("No git main command");
+    let git_main_param = cmd_iter
+        .next()
+        .expect("gbb command should have a main parameter");
     let args: Vec<String>;
 
     match git_main_param.as_str() {
@@ -30,7 +50,7 @@ fn main() {
         .stdout(Stdio::inherit())
         .stderr(Stdio::inherit())
         .output()
-        .expect("git command failed");
+        .expect("git command should return an output");
 }
 
 fn handle_push(cmd_iter: Skip<Args>) -> Vec<String> {
@@ -52,22 +72,4 @@ fn handle_push(cmd_iter: Skip<Args>) -> Vec<String> {
     }
 
     return args;
-}
-
-fn get_git_remote() -> String {
-    return run_git_command(vec!["remote"], "should get remote name");
-}
-
-fn get_current_git_branch() -> String {
-    return run_git_command(
-        vec!["branch", "--show-current", "2>nul"],
-        "Cannot get current branch",
-    );
-}
-
-fn run_git_command<T: AsRef<OsStr>>(args: Vec<T>, msg: &str) -> String {
-    return String::from_utf8(Command::new("git").args(args).output().expect(msg).stdout)
-        .expect("stdout from command should be utf8 stream of bytes")
-        .trim()
-        .to_string();
 }
