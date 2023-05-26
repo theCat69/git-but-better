@@ -32,9 +32,18 @@ fn get_current_git_branch() -> String {
 fn main() {
     let mut cmd_iter = env::args().skip(1);
 
-    let git_main_param = cmd_iter
+    let cmd_main_param = cmd_iter
         .next()
         .expect("gbb command should have a main parameter");
+
+    let git_main_param: String;
+
+    match cmd_main_param.as_str() {
+        "p" => git_main_param = "push".to_string(),
+        "c" => git_main_param = "commit".to_string(),
+        _ => git_main_param = cmd_main_param,
+    }
+
     let args: Vec<String>;
 
     match git_main_param.as_str() {
