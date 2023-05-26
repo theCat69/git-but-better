@@ -54,6 +54,7 @@ fn main() {
 
     match git_main_param.as_str() {
         "push" => args = handle_push(cmd_iter),
+        "diff" => args = handle_diff(cmd_iter),
         _ => args = cmd_iter.collect(),
     }
 
@@ -66,6 +67,20 @@ fn main() {
         .stderr(Stdio::inherit())
         .output()
         .expect("git command should return an output");
+}
+
+fn handle_diff(cmd_iter: Skip<Args>) -> Vec<String> {
+    let mut args = vec![];
+    for ele in cmd_iter {
+        match ele.as_str() {
+            "-st" => {
+                args.push("--staged".to_string());
+            }
+            _ => args.push(ele),
+        }
+    }
+
+    return args;
 }
 
 fn handle_push(cmd_iter: Skip<Args>) -> Vec<String> {
