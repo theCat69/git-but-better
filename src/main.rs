@@ -41,6 +41,12 @@ fn main() {
     match cmd_main_param.as_str() {
         "p" => git_main_param = "push".to_string(),
         "c" => git_main_param = "commit".to_string(),
+        "ch" => git_main_param = "checkout".to_string(),
+        "m" => git_main_param = "merge".to_string(),
+        "pl" => git_main_param = "pull".to_string(),
+        "r" => git_main_param = "rebase".to_string(),
+        "b" => git_main_param = "branch".to_string(),
+        "d" => git_main_param = "diff".to_string(),
         _ => git_main_param = cmd_main_param,
     }
 
