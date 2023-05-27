@@ -3,7 +3,7 @@ use std::{
     env::{self, Args},
     ffi::OsStr,
     iter::Skip,
-    process::{Command, Stdio},
+    process::{self, Command, Stdio},
 };
 
 lazy_static! {
@@ -36,28 +36,9 @@ fn main() {
         .next()
         .expect("gbb command should have a main parameter");
 
-    let git_main_param: String;
+    let git_main_param = handle_git_main_param(cmd_main_param).unwrap();
 
-    match cmd_main_param.as_str() {
-        "p" => git_main_param = "push".to_string(),
-        "c" => git_main_param = "commit".to_string(),
-        "ch" => git_main_param = "checkout".to_string(),
-        "m" => git_main_param = "merge".to_string(),
-        "pl" => git_main_param = "pull".to_string(),
-        "r" => git_main_param = "rebase".to_string(),
-        "b" => git_main_param = "branch".to_string(),
-        "d" => git_main_param = "diff".to_string(),
-        "s" => git_main_param = "stash".to_string(),
-        _ => git_main_param = cmd_main_param,
-    }
-
-    let args: Vec<String>;
-
-    match git_main_param.as_str() {
-        "push" => args = handle_push(cmd_iter),
-        "diff" => args = handle_diff(cmd_iter),
-        _ => args = cmd_iter.collect(),
-    }
+    let args = handle_params(&git_main_param, cmd_iter);
 
     let mut git_cmd = Command::new("git");
     git_cmd.arg(git_main_param);
@@ -68,6 +49,46 @@ fn main() {
         .stderr(Stdio::inherit())
         .output()
         .expect("git command should return an output");
+}
+
+fn handle_params(git_main_param: &String, cmd_iter: Skip<Args>) -> Vec<String> {
+    let args: Vec<String>;
+
+    match git_main_param.as_str() {
+        "push" => args = handle_push(cmd_iter),
+        "diff" => args = handle_diff(cmd_iter),
+        _ => args = cmd_iter.collect(),
+    }
+    args
+}
+
+fn handle_git_main_param(cmd_main_param: String) -> Result<String, String> {
+    match cmd_main_param.as_str() {
+        "ui" => {
+            run_git_ui();
+            Ok("Should never happen and be refactored".to_string())
+        }
+        "p" => Ok("push".to_string()),
+        "c" => Ok("commit".to_string()),
+        "ch" => Ok("checkout".to_string()),
+        "m" => Ok("merge".to_string()),
+        "pl" => Ok("pull".to_string()),
+        "r" => Ok("rebase".to_string()),
+        "b" => Ok("branch".to_string()),
+        "d" => Ok("diff".to_string()),
+        "s" => Ok("stash".to_string()),
+        "i" => Ok("init".to_string()),
+        _ => Ok(cmd_main_param),
+    }
+}
+
+fn run_git_ui() {
+    Command::new("gitui")
+        .stdout(Stdio::inherit())
+        .stderr(Stdio::inherit())
+        .output()
+        .expect("git command should return an output");
+    process::exit(0);
 }
 
 fn handle_diff(cmd_iter: Skip<Args>) -> Vec<String> {
