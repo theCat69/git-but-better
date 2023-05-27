@@ -47,6 +47,7 @@ fn main() {
         "r" => git_main_param = "rebase".to_string(),
         "b" => git_main_param = "branch".to_string(),
         "d" => git_main_param = "diff".to_string(),
+        "s" => git_main_param = "stash".to_string(),
         _ => git_main_param = cmd_main_param,
     }
 
