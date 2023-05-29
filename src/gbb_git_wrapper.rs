@@ -7,7 +7,7 @@ use std::{
 
 use crate::git_infos::{BRANCH_NAME, REMOTE_NAME};
 
-pub struct CmdWrapper;
+pub struct CmdRunner;
 
 pub struct GitUiWrapper;
 
@@ -16,12 +16,13 @@ pub struct GitWrapper {
     args: Vec<String>,
 }
 
-pub trait CmdRunner {
-    fn run_command(&self) -> io::Result<Output>;
+pub enum CmdRunnable {
+    GitUi(GitUiWrapper),
+    Git(GitWrapper),
 }
 
-impl CmdWrapper {
-    pub fn new(os_args: &mut Skip<Args>) -> Box<dyn CmdRunner> {
+impl CmdRunner {
+    pub fn new(os_args: &mut Skip<Args>) -> CmdRunnable {
         let cmd_main_param = os_args
             .next()
             .expect("gbb command should have a main parameter");
@@ -31,13 +32,26 @@ impl CmdWrapper {
         let args = handle_params(&main_arg, os_args);
 
         match main_arg.as_str() {
-            "ui" => Box::new(GitUiWrapper),
-            _ => Box::new(GitWrapper { main_arg, args }),
+            "ui" => CmdRunnable::GitUi(GitUiWrapper),
+            _ => CmdRunnable::Git(GitWrapper { main_arg, args }),
         }
     }
 }
 
-impl CmdRunner for GitWrapper {
+pub trait CmdRunnerTrait {
+    fn run_command(&self) -> io::Result<Output>;
+}
+
+impl CmdRunnerTrait for CmdRunnable {
+    fn run_command(&self) -> io::Result<Output> {
+        match self {
+            Self::GitUi(wrap) => wrap.run_command(),
+            Self::Git(wrap) => wrap.run_command(),
+        }
+    }
+}
+
+impl CmdRunnerTrait for GitWrapper {
     fn run_command(&self) -> io::Result<Output> {
         Command::new("git")
             .arg(&self.main_arg)
@@ -48,7 +62,7 @@ impl CmdRunner for GitWrapper {
     }
 }
 
-impl CmdRunner for GitUiWrapper {
+impl CmdRunnerTrait for GitUiWrapper {
     fn run_command(&self) -> io::Result<Output> {
         Command::new("gitui")
             .stdout(Stdio::inherit())
