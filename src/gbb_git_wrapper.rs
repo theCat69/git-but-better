@@ -9,7 +9,9 @@ use crate::git_infos::{BRANCH_NAME, REMOTE_NAME};
 
 pub struct CmdRunner;
 
-pub struct GitUiWrapper;
+pub struct GitUiWrapper {
+    args: Vec<String>,
+}
 
 pub struct GitWrapper {
     main_arg: String,
@@ -32,7 +34,7 @@ impl CmdRunner {
         let args = handle_params(&main_arg, os_args);
 
         match main_arg.as_str() {
-            "ui" => CmdRunnable::GitUi(GitUiWrapper),
+            "ui" => CmdRunnable::GitUi(GitUiWrapper { args }),
             _ => CmdRunnable::Git(GitWrapper { main_arg, args }),
         }
     }
@@ -53,22 +55,21 @@ impl CmdRunnerTrait for CmdRunnable {
 
 impl CmdRunnerTrait for GitWrapper {
     fn run_command(&self) -> io::Result<Output> {
-        Command::new("git")
-            .arg(&self.main_arg)
-            .args(&self.args)
-            .stdout(Stdio::inherit())
-            .stderr(Stdio::inherit())
-            .output()
+        run_cmd_stdout_inherited(Command::new("git").arg(&self.main_arg).args(&self.args))
     }
 }
 
 impl CmdRunnerTrait for GitUiWrapper {
     fn run_command(&self) -> io::Result<Output> {
-        Command::new("gitui")
-            .stdout(Stdio::inherit())
-            .stderr(Stdio::inherit())
-            .output()
+        run_cmd_stdout_inherited(Command::new("gitui").args(&self.args))
     }
+}
+
+fn run_cmd_stdout_inherited(command: &mut Command) -> Result<Output, io::Error> {
+    command
+        .stdout(Stdio::inherit())
+        .stderr(Stdio::inherit())
+        .output()
 }
 
 fn handle_git_main_param_alias(cmd_main_param: String) -> String {
