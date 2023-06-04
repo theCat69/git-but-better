@@ -14,6 +14,7 @@ pub struct GitUiWrapper {
     args: Vec<String>,
 }
 
+#[derive(Debug)]
 pub struct GitWrapper {
     main_arg: String,
     args: Vec<String>,
