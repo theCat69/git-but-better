@@ -1,16 +1,20 @@
 use std::{
-    env::Args,
     io,
-    iter::Skip,
     process::{Command, Output, Stdio},
 };
 
-use crate::git_infos::{BRANCH_NAME, REMOTE_NAME};
+use crate::{
+    git_infos::{BRANCH_NAME, REMOTE_NAME},
+    Cli,
+};
 
 pub struct CmdRunner;
 
-pub struct GitUiWrapper;
+pub struct GitUiWrapper {
+    args: Vec<String>,
+}
 
+#[derive(Debug)]
 pub struct GitWrapper {
     main_arg: String,
     args: Vec<String>,
@@ -22,18 +26,13 @@ pub enum CmdRunnable {
 }
 
 impl CmdRunner {
-    pub fn new(os_args: &mut Skip<Args>) -> CmdRunnable {
-        let cmd_main_param = os_args
-            .next()
-            .expect("gbb command should have a main parameter");
-
-        let main_arg = handle_git_main_param_alias(cmd_main_param);
-
-        let args = handle_params(&main_arg, os_args);
-
-        match main_arg.as_str() {
-            "ui" => CmdRunnable::GitUi(GitUiWrapper),
-            _ => CmdRunnable::Git(GitWrapper { main_arg, args }),
+    pub fn new(cli: Cli) -> CmdRunnable {
+        match cli.main_param.as_str() {
+            "ui" => CmdRunnable::GitUi(GitUiWrapper { args: cli.args }),
+            _ => CmdRunnable::Git(GitWrapper {
+                main_arg: cli.main_param,
+                args: cli.args,
+            }),
         }
     }
 }
@@ -53,26 +52,29 @@ impl CmdRunnerTrait for CmdRunnable {
 
 impl CmdRunnerTrait for GitWrapper {
     fn run_command(&self) -> io::Result<Output> {
-        Command::new("git")
-            .arg(&self.main_arg)
-            .args(&self.args)
-            .stdout(Stdio::inherit())
-            .stderr(Stdio::inherit())
-            .output()
+        run_cmd_stdout_inherited(
+            Command::new("git")
+                .arg(handle_git_main_param_alias(&self))
+                .args(handle_params(&self)),
+        )
     }
 }
 
 impl CmdRunnerTrait for GitUiWrapper {
     fn run_command(&self) -> io::Result<Output> {
-        Command::new("gitui")
-            .stdout(Stdio::inherit())
-            .stderr(Stdio::inherit())
-            .output()
+        run_cmd_stdout_inherited(Command::new("gitui").args(&self.args))
     }
 }
 
-fn handle_git_main_param_alias(cmd_main_param: String) -> String {
-    match cmd_main_param.as_str() {
+fn run_cmd_stdout_inherited(command: &mut Command) -> Result<Output, io::Error> {
+    command
+        .stdout(Stdio::inherit())
+        .stderr(Stdio::inherit())
+        .output()
+}
+
+pub fn handle_git_main_param_alias(git_wrapper: &GitWrapper) -> String {
+    match git_wrapper.main_arg.as_str() {
         "p" => "push".to_string(),
         "c" => "commit".to_string(),
         "ch" => "checkout".to_string(),
@@ -83,24 +85,19 @@ fn handle_git_main_param_alias(cmd_main_param: String) -> String {
         "d" => "diff".to_string(),
         "s" => "stash".to_string(),
         "i" => "init".to_string(),
-        _ => cmd_main_param,
+        _ => git_wrapper.main_arg.to_owned(),
     }
 }
-
-fn handle_params(git_main_param: &String, cmd_iter: &mut Skip<Args>) -> Vec<String> {
-    let args: Vec<String>;
-
-    match git_main_param.as_str() {
-        "push" => args = handle_push(cmd_iter),
-        "diff" => args = handle_diff(cmd_iter),
-        _ => args = cmd_iter.collect(),
+fn handle_params(git_wrapper: &GitWrapper) -> Vec<String> {
+    match git_wrapper.main_arg.as_str() {
+        "push" => handle_push(git_wrapper),
+        "diff" => handle_diff(git_wrapper),
+        _ => git_wrapper.args.to_owned(),
     }
-    args
 }
-
-fn handle_push(cmd_iter: &mut Skip<Args>) -> Vec<String> {
+fn handle_push(git_wrapper: &GitWrapper) -> Vec<String> {
     let mut args = vec![];
-    for ele in cmd_iter {
+    for ele in git_wrapper.args.as_slice() {
         match ele.as_str() {
             "-u" => {
                 args.push("-u".to_string());
@@ -110,25 +107,23 @@ fn handle_push(cmd_iter: &mut Skip<Args>) -> Vec<String> {
                 args.push("-d".to_string());
                 add_branch_and_remote_to_args(&mut args);
             }
-            _ => args.push(ele),
+            _ => args.push(ele.to_string()),
         }
     }
-
-    return args;
+    args
 }
 
-fn handle_diff(cmd_iter: &mut Skip<Args>) -> Vec<String> {
+fn handle_diff(git_wrapper: &GitWrapper) -> Vec<String> {
     let mut args = vec![];
-    for ele in cmd_iter {
+    for ele in git_wrapper.args.as_slice() {
         match ele.as_str() {
             "-st" => {
                 args.push("--staged".to_string());
             }
-            _ => args.push(ele),
+            _ => args.push(ele.to_string()),
         }
     }
-
-    return args;
+    args
 }
 
 fn add_branch_and_remote_to_args(args: &mut Vec<String>) {
